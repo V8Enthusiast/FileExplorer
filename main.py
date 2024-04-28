@@ -279,6 +279,59 @@ class MainWindow(QMainWindow):
                                 QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
             active_file_window.display_directory_contents(active_file_window.path)
+        elif event.key() == Qt.Key_F2 or (event.modifiers() & Qt.ShiftModifier) and event.key() == Qt.Key_F6:
+            print("renaming")
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+            selected_items = active_file_window.list.selectedItems()
+            if len(selected_items) < 1:
+                selected_items = [active_file_window.list.currentItem()]
+            for item in selected_items:
+                source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
+                target_path = source_path
+                if os.path.isdir(source_path):
+                    files_and_folders = os.listdir(active_file_window.path)
+                    while True:
+                        new_location = self.move_input(item.text())
+                        print(new_location)
+                        if new_location is not None:
+                            contains_illegal_chars = any(
+                                char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
+                        else:
+                            break
+                        if new_location is not None and contains_illegal_chars is False and len(
+                                new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
+                            new_path = os.path.join(active_file_window.path, new_location)
+                            if new_path != target_path:
+                                target_path = new_path
+                                conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                                self.copy(source_path, target_path, conflicts)
+                                shutil.rmtree(source_path)
+                            break
+                        else:
+                            QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
+                else:
+                    print("isfile")
+                    files_and_folders = os.listdir(active_file_window.path)
+                    while True:
+                        new_location = self.move_input(item.text())
+                        print(type(new_location))
+                        print(new_location is None)
+                        if new_location is not None:
+                            contains_illegal_chars = any(char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
+                        else:
+                            break
+                        if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
+                            new_path = os.path.join(active_file_window.path, new_location)
+                            if new_path != target_path:
+                                target_path = new_path
+                                shutil.copy2(source_path, target_path)
+                                os.remove(source_path)
+                            break
+                        else:
+                            QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
         elif event.key() == Qt.Key_F6:  # Check if F6 is pressed
             print("moving")
             active_file_window = self.get_active_file_window()
@@ -379,7 +432,7 @@ class MainWindow(QMainWindow):
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
             active_file_window.display_directory_contents(active_file_window.path)
 
-        elif (event.modifiers() & Qt.ShiftModifier) and event.key() == Qt.Key_Delete:
+        elif (event.modifiers() & Qt.ShiftModifier) and event.key() == Qt.Key_F8:
             print("activated")
             active_file_window = self.get_active_file_window()
             target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
@@ -396,7 +449,7 @@ class MainWindow(QMainWindow):
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
             active_file_window.display_directory_contents(active_file_window.path)
 
-        elif event.key() == Qt.Key_Delete:
+        elif event.key() == Qt.Key_F8:
             active_file_window = self.get_active_file_window()
             target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
             selected_items = active_file_window.list.selectedItems()
@@ -409,11 +462,11 @@ class MainWindow(QMainWindow):
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
             active_file_window.display_directory_contents(active_file_window.path)
 
-        elif event.key() == Qt.Key_F8:
+        elif event.key() == Qt.Key_F1:
             active_file_window = self.get_active_file_window()
             target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
 
-            files_and_folders = os.listdir(target_file_window.path)
+            files_and_folders = os.listdir(active_file_window.path)
             while True:
                 new_location = self.new_file()
                 print(type(new_location))
@@ -425,66 +478,13 @@ class MainWindow(QMainWindow):
                     break
                 if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and \
                         new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                    new_path = os.path.join(target_file_window.path, new_location)
+                    new_path = os.path.join(active_file_window.path, new_location)
                     with open(new_path, 'w') as file:
                         pass
                     break
                 else:
                     QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
 
-            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
-            active_file_window.display_directory_contents(active_file_window.path)
-        elif event.key() == Qt.Key_F2:
-            print("renaming")
-            active_file_window = self.get_active_file_window()
-            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
-            selected_items = active_file_window.list.selectedItems()
-            if len(selected_items) < 1:
-                selected_items = [active_file_window.list.currentItem()]
-            for item in selected_items:
-                source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
-                target_path = source_path
-                if os.path.isdir(source_path):
-                    files_and_folders = os.listdir(active_file_window.path)
-                    while True:
-                        new_location = self.move_input(item.text())
-                        print(new_location)
-                        if new_location is not None:
-                            contains_illegal_chars = any(
-                                char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
-                        else:
-                            break
-                        if new_location is not None and contains_illegal_chars is False and len(
-                                new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                            new_path = os.path.join(active_file_window.path, new_location)
-                            if new_path != target_path:
-                                target_path = new_path
-                                conflicts = functions.compare_2_directories(source_path + "\\", target_path)
-                                self.copy(source_path, target_path, conflicts)
-                                shutil.rmtree(source_path)
-                            break
-                        else:
-                            QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
-                else:
-                    print("isfile")
-                    files_and_folders = os.listdir(active_file_window.path)
-                    while True:
-                        new_location = self.move_input(item.text())
-                        print(type(new_location))
-                        print(new_location is None)
-                        if new_location is not None:
-                            contains_illegal_chars = any(char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
-                        else:
-                            break
-                        if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                            new_path = os.path.join(active_file_window.path, new_location)
-                            if new_path != target_path:
-                                target_path = new_path
-                                shutil.copy2(source_path, target_path)
-                                os.remove(source_path)
-                            break
-                        else:
-                            QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
             active_file_window.display_directory_contents(active_file_window.path)
     def copy_input(self, file):
