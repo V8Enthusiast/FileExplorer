@@ -206,28 +206,50 @@ class MainWindow(QMainWindow):
             for item in selected_items:
                 source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
                 target_path = os.path.join(target_file_window.path, item.text().strip('[]'))
-                if source_path != target_path:
-                    #target_path = target_file_window.path
-                    print(source_path)
-                    print(target_path)
-                    conflicts = functions.compare_2_directories(source_path + "\\", target_path)
-                    print(conflicts)
-                    self.copy(source_path, target_path, conflicts)
+                if os.path.isdir(source_path):
+                    if source_path != target_path:
+                        #target_path = target_file_window.path
+                        print(source_path)
+                        print(target_path)
+                        conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                        print(conflicts)
+                        self.copy(source_path, target_path, conflicts)
+                    else:
+                        new_location = self.input(item.text())
+                        print(new_location)
+                        if new_location is not None:
+                            new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                            if new_path != target_path:
+                                target_path = new_path
+                                conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                                self.copy(source_path, target_path, conflicts)
                 else:
-                    new_location = self.input()
-                    print(new_location)
-                    if new_location is not None:
-                        new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
-                        if new_path != target_path:
-                            target_path = new_path
-                            conflicts = functions.compare_2_directories(source_path + "\\", target_path)
-                            self.copy(source_path, target_path, conflicts)
+                    print("isfile")
+                    if source_path != target_path:
+                        data_in_target = os.listdir(target_file_window.path)
+                        print(data_in_target)
+                        if item.text() in data_in_target:
+                            print(data_in_target)
+                            overwrite = self.ask_user_choice(item.text())
+                            if overwrite:
+                                shutil.copy2(source_path, target_path)
+                        else:
+                            shutil.copy2(source_path, target_path)
+                    else:
+                        new_location = self.input(item.text())
+                        print(new_location)
+                        if new_location is not None:
+                            new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                            if new_path != target_path:
+                                target_path = new_path
+                                shutil.copy2(source_path, target_path)
+
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
 
-    def input(self):
+    def input(self, file):
         input_dialog = QInputDialog(self)
         input_dialog.setWindowTitle("Absolute Director")
-        input_dialog.setLabelText("Copy to:")
+        input_dialog.setLabelText(f"Copy {file} as:")
         input_dialog.setStyleSheet(
             "QLineEdit { background-color: white; color: black; }"
             "QLabel { color: white; font-weight: bold; }"
@@ -244,7 +266,7 @@ class MainWindow(QMainWindow):
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Question)
         msg_box.setWindowTitle("File Conflict")
-        msg_box.setText(f"{file} already exists. How do you want to proceed?")
+        msg_box.setText(f"{file} exists in target location")
         overwrite_button = msg_box.addButton("Overwrite", QMessageBox.YesRole)
         skip_button = msg_box.addButton("Skip", QMessageBox.NoRole)
         skip_all_button = msg_box.addButton("Skip All", QMessageBox.RejectRole)
