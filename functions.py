@@ -27,5 +27,3 @@ def compare_2_directories(source_path, target_path, conflicts=None):
             if item in data_in_target:
                 conflicts.append(source_item_path)
     return conflicts
-
-print(compare_2_directories("d:\\chris\\test\\copy here\\", "d:\\chris\\test\\GTA V Mods\\copy here\\"))

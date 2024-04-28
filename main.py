@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
                         print(conflicts)
                         self.copy(source_path, target_path, conflicts)
                     else:
-                        new_location = self.input(item.text())
+                        new_location = self.copy_input(item.text())
                         print(new_location)
                         if new_location is not None:
                             new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
@@ -247,17 +247,72 @@ class MainWindow(QMainWindow):
                         else:
                             shutil.copy2(source_path, target_path)
                     else:
-                        new_location = self.input(item.text())
+                        new_location = self.copy_input(item.text())
                         print(new_location)
                         if new_location is not None:
                             new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
                             if new_path != target_path:
                                 target_path = new_path
                                 shutil.copy2(source_path, target_path)
-
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+        elif event.key() == Qt.Key_F6:  # Check if F6 is pressed
+            print("moving")
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+            selected_items = active_file_window.list.selectedItems()
+            if len(selected_items) < 1:
+                selected_items = [active_file_window.list.currentItem()]
+            for item in selected_items:
+                source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
+                target_path = os.path.join(target_file_window.path, item.text().strip('[]'))
+                if os.path.isdir(source_path):
+                    if source_path != target_path:
+                        #target_path = target_file_window.path
+                        print(source_path)
+                        print(target_path)
+                        conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                        print(conflicts)
+                        self.copy(source_path, target_path, conflicts)
+                        shutil.rmtree(source_path)
+                        #os.rmdir(source_path)
+                    else:
+                        new_location = self.move_input(item.text())
+                        print(new_location)
+                        if new_location is not None:
+                            new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                            if new_path != target_path:
+                                target_path = new_path
+                                conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                                self.copy(source_path, target_path, conflicts)
+                                shutil.rmtree(source_path)
+                else:
+                    print("isfile")
+                    if source_path != target_path:
+                        data_in_target = os.listdir(target_file_window.path)
+                        print(data_in_target)
+                        if item.text() in data_in_target:
+                            print(data_in_target)
+                            overwrite = self.ask_user_choice(item.text())
+                            if overwrite:
+                                shutil.copy2(source_path, target_path)
+                                os.remove(source_path)
 
-    def input(self, file):
+                        else:
+                            shutil.copy2(source_path, target_path)
+                            os.remove(source_path)
+                    else:
+                        new_location = self.move_input(item.text())
+                        print(new_location)
+                        if new_location is not None:
+                            new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                            if new_path != target_path:
+                                target_path = new_path
+                                shutil.copy2(source_path, target_path)
+                                os.remove(source_path)
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
+
+    def copy_input(self, file):
         input_dialog = QInputDialog(self)
         input_dialog.setWindowTitle("Absolute Director")
         input_dialog.setLabelText(f"Copy {file} as:")
@@ -271,8 +326,20 @@ class MainWindow(QMainWindow):
         text = input_dialog.textValue()
         if ok and text:
             return text
-
-        #msg_box.exec_()
+    def move_input(self, file):
+        input_dialog = QInputDialog(self)
+        input_dialog.setWindowTitle("Absolute Director")
+        input_dialog.setLabelText(f"Rename {file} to:")
+        input_dialog.setStyleSheet(
+            "QLineEdit { background-color: white; color: black; }"
+            "QLabel { color: white; font-weight: bold; }"
+            "QPushButton {color: white;}"
+        )
+        input_dialog.resize(500, 125)
+        ok = input_dialog.exec_()
+        text = input_dialog.textValue()
+        if ok and text:
+            return text
     def ask_user_choice(self, file):
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Question)
@@ -319,6 +386,40 @@ class MainWindow(QMainWindow):
                     # If skip_all_conflicts is True, do nothing
                 else:
                     shutil.copy2(source_item_path, target_item_path)  # Copy file
+    def move_folder(self, source_path, target_path, conflicts, skip_all_conflicts=False):
+        if skip_all_conflicts:
+            return
+
+        data_in_source = os.listdir(source_path)
+        for item in data_in_source:
+            source_item_path = os.path.join(source_path, item)
+            target_item_path = os.path.join(target_path, item)
+            # print(f"Source: {source_item_path}")
+            # print(target_item_path)
+            # Ensure the target directory exists
+            target_dir = os.path.dirname(target_item_path)
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+
+            if os.path.isdir(source_item_path):
+                print(source_item_path)
+                self.copy(source_item_path, target_item_path, conflicts, skip_all_conflicts)
+                # shutil.rmtree(source_item_path)
+                # os.rmdir(source_item_path)
+            else:
+                if source_item_path in conflicts:
+                    if not skip_all_conflicts:
+                        user_choice = self.ask_user_choice(source_item_path)
+                        if user_choice is None:  # User chose to skip all future conflicts
+                            skip_all_conflicts = True
+                        elif user_choice:  # User chose to overwrite the file
+                            shutil.copy2(source_item_path, target_item_path)
+                            os.remove(source_item_path)
+                        # If user_choice is False, it means skip this file, so do nothing
+                    # If skip_all_conflicts is True, do nothing
+                else:
+                    shutil.copy2(source_item_path, target_item_path)  # Copy file
+                    os.remove(source_item_path)
 
     # def copy(self, source_path, target_path, conflicts):
     #     print(source_path)
