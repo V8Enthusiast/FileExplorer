@@ -4,6 +4,7 @@ import shutil
 import sys
 import configparser
 
+import send2trash
 from PyQt5.QtCore import Qt, pyqtSignal
 # from PyQt5 import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QMessageBox, QFrame, QMenuBar, QListWidget, \
@@ -13,6 +14,9 @@ from PyQt5.QtGui import QFont, QIcon, QPixmap
 # from win32comext.shell import shellcon, shell
 from sys import platform
 import subprocess
+
+from PyQt5.uic.properties import QtWidgets, QtCore
+
 import functions
 
 
@@ -174,7 +178,8 @@ class MainWindow(QMainWindow):
                         subprocess.call([opener, file_path])
 
     def keyPressEvent(self, event):
-        print(event.key())
+        print(event.modifiers())
+        #modifiers = QtWidgets.QApplication.keyboardModifiers()
         if event.key() == Qt.Key_Return:  # Enter key
             self.enter_pressed()
         elif event.key() == Qt.Key_Backspace:  # Backspace key
@@ -235,7 +240,7 @@ class MainWindow(QMainWindow):
                             else:
                                 break
                             if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                                new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                                new_path = os.path.join(target_file_window.path, new_location)
                                 if new_path != target_path:
                                     target_path = new_path
                                     conflicts = functions.compare_2_directories(source_path + "\\", target_path)
@@ -265,7 +270,7 @@ class MainWindow(QMainWindow):
                             else:
                                 break
                             if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                                new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                                new_path = os.path.join(target_file_window.path, new_location)
                                 if new_path != target_path:
                                     target_path = new_path
                                     shutil.copy2(source_path, target_path)
@@ -304,7 +309,7 @@ class MainWindow(QMainWindow):
                             else:
                                 break
                             if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                                new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                                new_path = os.path.join(target_file_window.path, new_location)
                                 if new_path != target_path:
                                     target_path = new_path
                                     conflicts = functions.compare_2_directories(source_path + "\\", target_path)
@@ -339,7 +344,7 @@ class MainWindow(QMainWindow):
                             else:
                                 break
                             if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
-                                new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                                new_path = os.path.join(target_file_window.path, new_location)
                                 if new_path != target_path:
                                     target_path = new_path
                                     shutil.copy2(source_path, target_path)
@@ -349,7 +354,139 @@ class MainWindow(QMainWindow):
                                 QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
             target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
             active_file_window.display_directory_contents(active_file_window.path)
+        elif event.key() == Qt.Key_F7:
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
 
+            files_and_folders = os.listdir(target_file_window.path)
+            while True:
+                new_location = self.new_folder()
+                print(type(new_location))
+                print(new_location is None)
+                if new_location is not None:
+                    contains_illegal_chars = any(
+                        char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
+                else:
+                    break
+                if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and \
+                        new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
+                    new_path = os.path.join(target_file_window.path, new_location)
+                    os.mkdir(new_path)
+                    break
+                else:
+                    QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
+
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
+
+        elif (event.modifiers() & Qt.ShiftModifier) and event.key() == Qt.Key_Delete:
+            print("activated")
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+            selected_items = active_file_window.list.selectedItems()
+            if len(selected_items) < 1:
+                selected_items = [active_file_window.list.currentItem()]
+            for item in selected_items:
+                path = os.path.join(active_file_window.path, item.text().strip('[]'))
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
+
+        elif event.key() == Qt.Key_Delete:
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+            selected_items = active_file_window.list.selectedItems()
+            if len(selected_items) < 1:
+                selected_items = [active_file_window.list.currentItem()]
+            for item in selected_items:
+                path = os.path.join(active_file_window.path, item.text().strip('[]'))
+                send2trash.send2trash(path)
+
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
+
+        elif event.key() == Qt.Key_F8:
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+
+            files_and_folders = os.listdir(target_file_window.path)
+            while True:
+                new_location = self.new_file()
+                print(type(new_location))
+                print(new_location is None)
+                if new_location is not None:
+                    contains_illegal_chars = any(
+                        char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
+                else:
+                    break
+                if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and \
+                        new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
+                    new_path = os.path.join(target_file_window.path, new_location)
+                    with open(new_path, 'w') as file:
+                        pass
+                    break
+                else:
+                    QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
+
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
+        elif event.key() == Qt.Key_F2:
+            print("renaming")
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+            selected_items = active_file_window.list.selectedItems()
+            if len(selected_items) < 1:
+                selected_items = [active_file_window.list.currentItem()]
+            for item in selected_items:
+                source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
+                target_path = source_path
+                if os.path.isdir(source_path):
+                    files_and_folders = os.listdir(active_file_window.path)
+                    while True:
+                        new_location = self.move_input(item.text())
+                        print(new_location)
+                        if new_location is not None:
+                            contains_illegal_chars = any(
+                                char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
+                        else:
+                            break
+                        if new_location is not None and contains_illegal_chars is False and len(
+                                new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
+                            new_path = os.path.join(active_file_window.path, new_location)
+                            if new_path != target_path:
+                                target_path = new_path
+                                conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                                self.copy(source_path, target_path, conflicts)
+                                shutil.rmtree(source_path)
+                            break
+                        else:
+                            QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
+                else:
+                    print("isfile")
+                    files_and_folders = os.listdir(active_file_window.path)
+                    while True:
+                        new_location = self.move_input(item.text())
+                        print(type(new_location))
+                        print(new_location is None)
+                        if new_location is not None:
+                            contains_illegal_chars = any(char in new_location for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|'])
+                        else:
+                            break
+                        if new_location is not None and contains_illegal_chars is False and len(new_location) > 0 and new_location[-1] != ' ' and new_location[0] != ' ' and new_location not in files_and_folders:
+                            new_path = os.path.join(active_file_window.path, new_location)
+                            if new_path != target_path:
+                                target_path = new_path
+                                shutil.copy2(source_path, target_path)
+                                os.remove(source_path)
+                            break
+                        else:
+                            QMessageBox.information(self, "Absolute Director", "Name can't already exist or contain / \\ : * ? \" < > | and cannot start or end with a space")
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
+            active_file_window.display_directory_contents(active_file_window.path)
     def copy_input(self, file):
         input_dialog = QInputDialog(self)
         input_dialog.setWindowTitle("Absolute Director")
@@ -368,6 +505,34 @@ class MainWindow(QMainWindow):
         input_dialog = QInputDialog(self)
         input_dialog.setWindowTitle("Absolute Director")
         input_dialog.setLabelText(f"Rename {file} to:")
+        input_dialog.setStyleSheet(
+            "QLineEdit { background-color: white; color: black; }"
+            "QLabel { color: white; font-weight: bold; }"
+            "QPushButton {color: white;}"
+        )
+        input_dialog.resize(500, 125)
+        ok = input_dialog.exec_()
+        text = input_dialog.textValue()
+        if ok and text:
+            return text
+    def new_folder(self):
+        input_dialog = QInputDialog(self)
+        input_dialog.setWindowTitle("Absolute Director")
+        input_dialog.setLabelText(f"New Folder (directory)")
+        input_dialog.setStyleSheet(
+            "QLineEdit { background-color: white; color: black; }"
+            "QLabel { color: white; font-weight: bold; }"
+            "QPushButton {color: white;}"
+        )
+        input_dialog.resize(500, 125)
+        ok = input_dialog.exec_()
+        text = input_dialog.textValue()
+        if ok and text:
+            return text
+    def new_file(self):
+        input_dialog = QInputDialog(self)
+        input_dialog.setWindowTitle("Absolute Director")
+        input_dialog.setLabelText(f"New File")
         input_dialog.setStyleSheet(
             "QLineEdit { background-color: white; color: black; }"
             "QLabel { color: white; font-weight: bold; }"
