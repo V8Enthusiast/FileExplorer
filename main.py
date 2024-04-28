@@ -22,7 +22,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Absolute Director")
         self.setGeometry(1000, 500, width, height)  # Initial window size: width, height
 
-
         # self.file_window.list.setStyleSheet(
         #     "QListWidget {"
         #     "color: black;"
@@ -241,6 +240,7 @@ class FileWindow(QWidget):
             "}"
             "QScrollBar:horizontal { width: 0px; }"
         )
+        self.list.update()
 
         self.path = main_window.default_path
 
@@ -292,6 +292,7 @@ def load_config():
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
     config = load_config()
     window = MainWindow(config, 1200, 1000)
     window.show()
