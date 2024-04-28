@@ -1,17 +1,19 @@
 # import ctypes
 import os
+import shutil
 import sys
 import configparser
 
 from PyQt5.QtCore import Qt, pyqtSignal
 # from PyQt5 import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QMessageBox, QFrame, QMenuBar, QListWidget, \
-    QListWidgetItem, QWidget
+    QListWidgetItem, QWidget, QInputDialog
 from PyQt5.QtGui import QFont, QIcon, QPixmap
 # from PyQt5.QtWinExtras import QtWin
 # from win32comext.shell import shellcon, shell
 from sys import platform
 import subprocess
+import functions
 
 
 supported_file_extensions = ['txt', 'png', 'jpg', 'pdf']
@@ -20,7 +22,7 @@ class MainWindow(QMainWindow):
     def __init__(self, config, width, height):
         super().__init__()
         self.setWindowTitle("Absolute Director")
-        self.setGeometry(1000, 500, width, height)  # Initial window size: width, height
+        self.setGeometry(1000, 300, width, height)  # Initial window size: width, height
 
         # self.file_window.list.setStyleSheet(
         #     "QListWidget {"
@@ -60,7 +62,7 @@ class MainWindow(QMainWindow):
         #self.divider.setFrameShadow(QFrame.Sunken)
         self.divider.setStyleSheet("QFrame { color: " + config['menu_bar_color'] +"; }")
 
-        self.default_path = "d:/chris/"
+        self.default_path = "d:\\chris\\test\\"
 
 
         self.file_window = FileWindow(0, width, height, config, self)
@@ -160,8 +162,8 @@ class MainWindow(QMainWindow):
                 item_text = current_item.text()
                 if item_text.startswith('['):  # It's a directory
                     directory_name = item_text.strip('[]')
-                    print(current_file_window.path + '/' + directory_name)
-                    current_file_window.display_directory_contents(current_file_window.path + directory_name + '/')
+                    print(current_file_window.path + '\\' + directory_name)
+                    current_file_window.display_directory_contents(current_file_window.path + directory_name + '\\')
                 else:  # It's a file
                     file_path = os.path.join(current_file_window.path, item_text)
                     print("Opening file:", file_path)
@@ -173,21 +175,21 @@ class MainWindow(QMainWindow):
 
     def keyPressEvent(self, event):
         print(event.key())
-        if event.key() == 16777220:  # Enter key
+        if event.key() == Qt.Key_Return:  # Enter key
             self.enter_pressed()
-        elif event.key() == 16777219:  # Backspace key
+        elif event.key() == Qt.Key_Backspace:  # Backspace key
             current_file_window = self.get_active_file_window()
             if current_file_window is not None:
                 if len(current_file_window.path) > 3:
-                    parts = current_file_window.path.split('/')
+                    parts = current_file_window.path.split('\\')
                     if parts[-1] == '':
                         parts = parts[:-2]
                     else:
                         parts = parts[:-1]
 
-                    new_path = '/'.join(parts) + '/'
+                    new_path = '\\'.join(parts) + '\\'
                     current_file_window.display_directory_contents(new_path)
-        elif event.key() == 16777267:  # F4 key
+        elif event.key() == Qt.Key_F4:  # F4 key
             current_file_window = self.get_active_file_window()
             if current_file_window is not None:
                 current_item = current_file_window.list.currentItem()
@@ -196,7 +198,111 @@ class MainWindow(QMainWindow):
                     print("Opening file in Notepad++:", file_path)
                     #subprocess.call(["notepad++", file_path])
                     subprocess.run(f"\"C:\\Program Files\\Notepad++\\notepad++.exe\" \"{file_path}\"")
+        if event.key() == Qt.Key_F5:  # Check if F5 is pressed
+            print("copying")
+            active_file_window = self.get_active_file_window()
+            target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
+            selected_items = active_file_window.list.selectedItems()
+            for item in selected_items:
+                source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
+                target_path = os.path.join(target_file_window.path, item.text().strip('[]'))
+                if source_path != target_path:
+                    #target_path = target_file_window.path
+                    print(source_path)
+                    print(target_path)
+                    conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                    print(conflicts)
+                    self.copy(source_path, target_path, conflicts)
+                else:
+                    new_location = self.input()
+                    print(new_location)
+                    if new_location is not None:
+                        new_path = os.path.join(target_file_window.path, new_location.strip('[]'))
+                        if new_path != target_path:
+                            target_path = new_path
+                            conflicts = functions.compare_2_directories(source_path + "\\", target_path)
+                            self.copy(source_path, target_path, conflicts)
+            target_file_window.display_directory_contents(target_file_window.path)  # Refresh the target file window
 
+    def input(self):
+        input_dialog = QInputDialog(self)
+        input_dialog.setWindowTitle("Absolute Director")
+        input_dialog.setLabelText("Copy to:")
+        input_dialog.setStyleSheet(
+            "QLineEdit { background-color: white; color: black; }"
+            "QLabel { color: white; font-weight: bold; }"
+            "QPushButton {color: white;}"
+        )
+        input_dialog.resize(500, 125)
+        ok = input_dialog.exec_()
+        text = input_dialog.textValue()
+        if ok and text:
+            return text
+
+        #msg_box.exec_()
+    def ask_user_choice(self, file):
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setWindowTitle("File Conflict")
+        msg_box.setText(f"{file} already exists. How do you want to proceed?")
+        overwrite_button = msg_box.addButton("Overwrite", QMessageBox.YesRole)
+        skip_button = msg_box.addButton("Skip", QMessageBox.NoRole)
+        skip_all_button = msg_box.addButton("Skip All", QMessageBox.RejectRole)
+        msg_box.exec_()
+
+        if msg_box.clickedButton() == overwrite_button:
+            return True
+        elif msg_box.clickedButton() == skip_button:
+            return False
+        elif msg_box.clickedButton() == skip_all_button:
+            return None
+
+    def copy(self, source_path, target_path, conflicts, skip_all_conflicts=False):
+        if skip_all_conflicts:
+            return
+
+        data_in_source = os.listdir(source_path)
+        for item in data_in_source:
+            source_item_path = os.path.join(source_path, item)
+            target_item_path = os.path.join(target_path, item)
+            print(f"Source: {source_item_path}")
+            print(target_item_path)
+            # Ensure the target directory exists
+            target_dir = os.path.dirname(target_item_path)
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+
+            if os.path.isdir(source_item_path):
+                self.copy(source_item_path, target_item_path, conflicts, skip_all_conflicts)
+            else:
+                if source_item_path in conflicts:
+                    if not skip_all_conflicts:
+                        user_choice = self.ask_user_choice(source_item_path)
+                        if user_choice is None:  # User chose to skip all future conflicts
+                            skip_all_conflicts = True
+                        elif user_choice:  # User chose to overwrite the file
+                            shutil.copy2(source_item_path, target_item_path)
+                        # If user_choice is False, it means skip this file, so do nothing
+                    # If skip_all_conflicts is True, do nothing
+                else:
+                    shutil.copy2(source_item_path, target_item_path)  # Copy file
+
+    # def copy(self, source_path, target_path, conflicts):
+    #     print(source_path)
+    #     data_in_source = os.listdir(source_path)
+    #     for item in data_in_source:
+    #         if os.path.isdir(item):
+    #             source_item_path = os.path.join(source_path, item)
+    #             target_item_path = os.path.join(target_path, item)
+    #             self.copy(source_item_path, target_item_path, conflicts)
+    #         else:
+    #             source_item_path = os.path.join(source_path, item)
+    #             print(source_item_path)
+    #             if source_item_path in conflicts:
+    #                 ## display window here ##
+    #                 pass
+    #             else:
+    #                 shutil.copy2(source_path + item, target_path)  # Copy file
     def on_item_double_clicked(self, item):
         print("Item double-clicked:", item.text())
         self.enter_pressed()
@@ -270,15 +376,15 @@ class FileWindow(QWidget):
                     files.append(item)
             folders.sort()
             files.sort()
-            folder_icon = QIcon("img/folder.png")
+            folder_icon = QIcon("img\\folder.png")
             for item in folders:
                 list_item = QListWidgetItem(folder_icon, "[" + item + "]")
                 self.list.addItem(list_item)
             for item in files:
-                file_icon = QIcon("img/file.png")
+                file_icon = QIcon("img\\file.png")
                 parts = item.split('.')
                 if parts[-1] in supported_file_extensions:
-                    file_icon = QIcon(f"img/{parts[-1]}.png")
+                    file_icon = QIcon(f"img\\{parts[-1]}.png")
                 list_item = QListWidgetItem(file_icon, item)
                 self.list.addItem(list_item)
         except Exception as e:
@@ -294,7 +400,7 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     config = load_config()
-    window = MainWindow(config, 1200, 1000)
+    window = MainWindow(config, 2100, 1600)
     window.show()
     sys.exit(app.exec_())
 
