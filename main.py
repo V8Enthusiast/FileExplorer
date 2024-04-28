@@ -189,6 +189,15 @@ class MainWindow(QMainWindow):
 
                     new_path = '\\'.join(parts) + '\\'
                     current_file_window.display_directory_contents(new_path)
+        elif event.key() == Qt.Key_F3:  # F3 key
+            current_file_window = self.get_active_file_window()
+            if current_file_window is not None:
+                current_item = current_file_window.list.currentItem()
+                if current_item and not current_item.text().startswith('['):  # Ensure it's a file
+                    file_path = os.path.join(current_file_window.path, current_item.text())
+                    print("Opening file in Notepad++:", file_path)
+                    #subprocess.call(["notepad++", file_path])
+                    subprocess.run(f"\"C:\\Windows\\System32\\notepad.exe\" \"{file_path}\"")
         elif event.key() == Qt.Key_F4:  # F4 key
             current_file_window = self.get_active_file_window()
             if current_file_window is not None:
@@ -198,11 +207,13 @@ class MainWindow(QMainWindow):
                     print("Opening file in Notepad++:", file_path)
                     #subprocess.call(["notepad++", file_path])
                     subprocess.run(f"\"C:\\Program Files\\Notepad++\\notepad++.exe\" \"{file_path}\"")
-        if event.key() == Qt.Key_F5:  # Check if F5 is pressed
+        elif event.key() == Qt.Key_F5:  # Check if F5 is pressed
             print("copying")
             active_file_window = self.get_active_file_window()
             target_file_window = self.file_window2 if active_file_window == self.file_window else self.file_window
             selected_items = active_file_window.list.selectedItems()
+            if len(selected_items) < 1:
+                selected_items = [active_file_window.list.currentItem()]
             for item in selected_items:
                 source_path = os.path.join(active_file_window.path, item.text().strip('[]'))
                 target_path = os.path.join(target_file_window.path, item.text().strip('[]'))
@@ -411,6 +422,49 @@ class FileWindow(QWidget):
                 self.list.addItem(list_item)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to read directory contents: {str(e)}")
+
+    # def display_directory_contents(self, path):
+    #     try:
+    #         self.path = path
+    #         self.list.clear()  # Clear existing entries
+    #         files_and_folders = os.listdir(path)
+    #         folders = []
+    #         files = []
+    #         for item in files_and_folders:
+    #             item_path = os.path.join(path, item)
+    #             if os.path.isdir(item_path):
+    #                 total_size = sum(os.path.getsize(os.path.join(dirpath, filename))
+    #                                  for dirpath, dirnames, filenames in os.walk(item_path)
+    #                                  for filename in filenames)
+    #                 folders.append((item, total_size))
+    #             else:
+    #                 file_size = os.path.getsize(item_path)
+    #                 files.append((item, file_size))
+    #         folders.sort()
+    #         files.sort()
+    #         folder_icon = QIcon("img\\folder.png")
+    #         for item, size in folders:
+    #             size_str = self.format_size(size)
+    #             list_item = QListWidgetItem(folder_icon, f"[{item}] ({size_str})")
+    #             self.list.addItem(list_item)
+    #         for item, size in files:
+    #             file_icon = QIcon("img\\file.png")
+    #             parts = item.split('.')
+    #             if parts[-1] in supported_file_extensions:
+    #                 file_icon = QIcon(f"img\\{parts[-1]}.png")
+    #             size_str = self.format_size(size)
+    #             list_item = QListWidgetItem(file_icon, f"{item} ({size_str})")
+    #             self.list.addItem(list_item)
+    #     except Exception as e:
+    #         QMessageBox.critical(self, "Error", f"Failed to read directory contents: {str(e)}")
+    #
+    # def format_size(self, size):
+    #     # Helper function to convert size to a more readable format
+    #     for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB']:
+    #         if size < 1024.0:
+    #             return f"{size:.2f} {unit}"
+    #         size /= 1024.0
+    #     return f"{size:.2f} YB"
 
 def load_config():
     config = configparser.ConfigParser()
