@@ -3,10 +3,10 @@ import os
 import sys
 import configparser
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 # from PyQt5 import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QMessageBox, QFrame, QMenuBar, QListWidget, \
-    QListWidgetItem
+    QListWidgetItem, QWidget
 from PyQt5.QtGui import QFont, QIcon, QPixmap
 # from PyQt5.QtWinExtras import QtWin
 # from win32comext.shell import shellcon, shell
@@ -22,38 +22,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Absolute Director")
         self.setGeometry(1000, 500, width, height)  # Initial window size: width, height
 
-        self.list_widget = QListWidget(self)
-        self.list_widget.setGeometry(0, 75, width//2, height - 100)
-        self.list_widget.setSelectionMode(QListWidget.MultiSelection)
-        self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked)
-        self.list_widget.setStyleSheet(
-            "QListWidget {"
-            f"color: {config['font_color']};"
-            f"font-size: {int(config['font_size'])}px;"
-            f"font-family: {config['font_family']};"
-            "}"
-            "QListWidget::item:selected {"
-            f"background-color: {config['background_color']};"
-            f"color: {config['selected_color']};"
-            "}"
-            "QListWidget::item:hover {"
-            f"background-color: {config['hover_color']};"
-            "}"
-            "QScrollBar:vertical {"
-            f"background: {config['selected_color']};"
-            "border-radius: 15px;"  # Rounded corners
-            "width: 10px;"  # Adjust width as needed
-            "}"
-            "QScrollBar::handle:vertical {"
-            "background: " + config['selected_color'] + ";"  # Define handle_color in your config
-            "min-height: 20px;"  # Adjust size as needed
-            "}"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-            "display: none;"  # Hides the buttons
-            "}"
-            "QScrollBar:horizontal { width: 0px; }"
-        )
-        # self.list_widget.setStyleSheet(
+
+        # self.file_window.list.setStyleSheet(
         #     "QListWidget {"
         #     "color: black;"
         #     "font-size: 24px;"  # Hardcoded value for testing
@@ -90,60 +60,37 @@ class MainWindow(QMainWindow):
         self.divider.setFrameShape(QFrame.VLine)
         #self.divider.setFrameShadow(QFrame.Sunken)
         self.divider.setStyleSheet("QFrame { color: " + config['menu_bar_color'] +"; }")
+
+        self.default_path = "d:/chris/"
+
+
+        self.file_window = FileWindow(0, width, height, config, self)
+        self.file_window2 = FileWindow(width//2, width, height, config, self)
+
+        self.file_window.display_directory_contents(self.default_path)
+        self.file_window2.display_directory_contents(self.default_path)
+
         self.update_divider()
-
-        self.path = "d:/chris/"
-
-        self.display_directory_contents(self.path)
-
     # def on_button_clicked(self):
     #     QMessageBox.information(self, "Message", "You clicked the button!")
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.update_divider()
         self.menu_bar.setGeometry(0, 0, self.frameSize().width(), 75)  # Update menu bar width on resize
+        self.file_window.resize()
+        self.file_window2.resize()
 
     def update_divider(self):
         width = self.frameSize().width()
         height = self.frameSize().height()
         line_width = 10  # Set the thickness of the line
         self.divider.setGeometry(width // 2 - line_width // 2, 75, line_width, height - 75)  # Adjusted for menu bar height
-        self.list_widget.setGeometry(0, 75, width // 2, height - 100)
 
-    from PyQt5.QtGui import QIcon
 
-    def display_directory_contents(self, path):
-        try:
-            self.path = path
-            self.list_widget.clear()  # Clear existing entries
-            files_and_folders = os.listdir(path)
-            folders = []
-            files = []
-            for item in files_and_folders:
-                if os.path.isdir(path + item):
-                    folders.append(item)
-                else:
-                    files.append(item)
-            folders.sort()
-            files.sort()
-            folder_icon = QIcon("img/folder.png")
-            for item in folders:
-                list_item = QListWidgetItem(folder_icon, "[" + item + "]")
-                self.list_widget.addItem(list_item)
-            for item in files:
-                file_icon = QIcon("img/file.png")
-                parts = item.split('.')
-                if parts[-1] in supported_file_extensions:
-                    file_icon = QIcon(f"img/{parts[-1]}.png")
-                list_item = QListWidgetItem(file_icon, item)
-                self.list_widget.addItem(list_item)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to read directory contents: {str(e)}")
     # def display_directory_contents(self, path):
     #     try:
     #         self.path = path
-    #         self.list_widget.clear()  # Clear existing entries
+    #         self.file_window.list.clear()  # Clear existing entries
     #         files_and_folders = os.listdir(path)
     #         folders = []
     #         files = []
@@ -159,11 +106,11 @@ class MainWindow(QMainWindow):
     #         for item in folders:
     #             icon = self.get_icon(os.path.join(path, item), True)
     #             list_item = QListWidgetItem(QIcon(icon), "[" + item + "]")
-    #             self.list_widget.addItem(list_item)
+    #             self.file_window.list.addItem(list_item)
     #         for item in files:
     #             icon = self.get_icon(os.path.join(path, item), False)
     #             list_item = QListWidgetItem(QIcon(icon), item)
-    #             self.list_widget.addItem(list_item)
+    #             self.file_window.list.addItem(list_item)
     #     except Exception as e:
     #         QMessageBox.critical(self, "Error", f"Failed to read directory contents: {str(e)}")
     #
@@ -182,7 +129,7 @@ class MainWindow(QMainWindow):
     #     print(event.key())
     #     if event.key() == 16777220:
     #         print("enter")
-    #         current_item = self.list_widget.currentItem()
+    #         current_item = self.file_window.list.currentItem()
     #         if current_item and current_item.text().startswith('['):
     #             directory_name = current_item.text().strip('[]')
     #             print(self.path + '/' + directory_name)
@@ -199,50 +146,144 @@ class MainWindow(QMainWindow):
     #             new_path = '/'.join(parts) + '/'
     #
     #             self.display_directory_contents(new_path)
-
+    def get_active_file_window(self):
+        if self.file_window.list.hasFocus():
+            return self.file_window
+        elif self.file_window2.list.hasFocus():
+            return self.file_window2
+        return None
     def enter_pressed(self):
         print("active")
-        current_item = self.list_widget.currentItem()
-        if current_item:
-            item_text = current_item.text()
-            if item_text.startswith('['):  # It's a directory
-                directory_name = item_text.strip('[]')
-                print(self.path + '/' + directory_name)
-                self.display_directory_contents(self.path + directory_name + '/')
-            else:  # It's a file
-                file_path = os.path.join(self.path, item_text)
-                print("Opening file:", file_path)
-                if platform == "win32":
-                    os.startfile(file_path)
-                else:
-                    opener = "open" if platform == "darwin" else "xdg-open"
-                    subprocess.call([opener, file_path])
+        current_file_window = self.get_active_file_window()
+        if current_file_window is not None:
+            current_item = current_file_window.list.currentItem()
+            if current_item:
+                item_text = current_item.text()
+                if item_text.startswith('['):  # It's a directory
+                    directory_name = item_text.strip('[]')
+                    print(current_file_window.path + '/' + directory_name)
+                    current_file_window.display_directory_contents(current_file_window.path + directory_name + '/')
+                else:  # It's a file
+                    file_path = os.path.join(current_file_window.path, item_text)
+                    print("Opening file:", file_path)
+                    if platform == "win32":
+                        os.startfile(file_path)
+                    else:
+                        opener = "open" if platform == "darwin" else "xdg-open"
+                        subprocess.call([opener, file_path])
 
     def keyPressEvent(self, event):
         print(event.key())
         if event.key() == 16777220:  # Enter key
             self.enter_pressed()
         elif event.key() == 16777219:  # Backspace key
-            if len(self.path) > 3:
-                parts = self.path.split('/')
-                if parts[-1] == '':
-                    parts = parts[:-2]
-                else:
-                    parts = parts[:-1]
+            current_file_window = self.get_active_file_window()
+            if current_file_window is not None:
+                if len(current_file_window.path) > 3:
+                    parts = current_file_window.path.split('/')
+                    if parts[-1] == '':
+                        parts = parts[:-2]
+                    else:
+                        parts = parts[:-1]
 
-                new_path = '/'.join(parts) + '/'
-                self.display_directory_contents(new_path)
+                    new_path = '/'.join(parts) + '/'
+                    current_file_window.display_directory_contents(new_path)
         elif event.key() == 16777267:  # F4 key
-            current_item = self.list_widget.currentItem()
-            if current_item and not current_item.text().startswith('['):  # Ensure it's a file
-                file_path = os.path.join(self.path, current_item.text())
-                print("Opening file in Notepad++:", file_path)
-                #subprocess.call(["notepad++", file_path])
-                subprocess.run(f"\"C:\Program Files\\Notepad++\\notepad++.exe\" \"{file_path}\"")
+            current_file_window = self.get_active_file_window()
+            if current_file_window is not None:
+                current_item = current_file_window.list.currentItem()
+                if current_item and not current_item.text().startswith('['):  # Ensure it's a file
+                    file_path = os.path.join(current_file_window.path, current_item.text())
+                    print("Opening file in Notepad++:", file_path)
+                    #subprocess.call(["notepad++", file_path])
+                    subprocess.run(f"\"C:\\Program Files\\Notepad++\\notepad++.exe\" \"{file_path}\"")
 
     def on_item_double_clicked(self, item):
         print("Item double-clicked:", item.text())
         self.enter_pressed()
+
+class FileWindow(QWidget):
+    tabPressed = pyqtSignal()
+    def __init__(self, x, width, height, config, main_window):
+        super().__init__()
+        self.x = x
+        self.main_window = main_window
+        self.list = QListWidget(main_window)
+        self.list.setGeometry(x, 75, width // 2, height - 100)
+        self.list.setSelectionMode(QListWidget.MultiSelection)
+        self.list.itemDoubleClicked.connect(main_window.on_item_double_clicked)
+        # self.tabPressed = pyqtSignal()
+        # self.tabPressed.connect(self.on_tab_pressed)
+        self.list.setStyleSheet(
+            "QListWidget {"
+            f"color: {config['font_color']};"
+            f"font-size: {int(config['font_size'])}px;"
+            f"font-family: {config['font_family']};"
+            "}"
+            "QListWidget::item:selected {"
+            f"background-color: {config['background_color']};"
+            f"color: {config['selected_color']};"
+            "}"
+            "QListWidget::item:hover {"
+            f"background-color: {config['hover_color']};"
+            "}"
+            "QScrollBar:vertical {"
+            f"background: {config['selected_color']};"
+            "border-radius: 15px;"  # Rounded corners
+            "width: 10px;"  # Adjust width as needed
+            "}"
+            "QScrollBar::handle:vertical {"
+            "background: " + config['selected_color'] + ";"  # Define handle_color in your config
+            "min-height: 20px;"  # Adjust size as needed
+            "}"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
+            "display: none;"  # Hides the buttons
+            "}"
+            "QScrollBar:horizontal { width: 0px; }"
+        )
+
+        self.path = main_window.default_path
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Tab:
+            self.tabPressed.emit()  # Emit the signal when Tab is pressed
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+    def resize(self):
+        width = self.main_window.frameSize().width()
+        height = self.main_window.frameSize().height()
+        if self.x != 0:
+            self.x = width // 2
+        self.list.setGeometry(self.x, 75, width // 2, height - 100)
+    def display_directory_contents(self, path):
+        try:
+            self.path = path
+            self.list.clear()  # Clear existing entries
+            files_and_folders = os.listdir(path)
+            folders = []
+            files = []
+            for item in files_and_folders:
+                if os.path.isdir(path + item):
+                    folders.append(item)
+                else:
+                    files.append(item)
+            folders.sort()
+            files.sort()
+            folder_icon = QIcon("img/folder.png")
+            for item in folders:
+                list_item = QListWidgetItem(folder_icon, "[" + item + "]")
+                self.list.addItem(list_item)
+            for item in files:
+                file_icon = QIcon("img/file.png")
+                parts = item.split('.')
+                if parts[-1] in supported_file_extensions:
+                    file_icon = QIcon(f"img/{parts[-1]}.png")
+                list_item = QListWidgetItem(file_icon, item)
+                self.list.addItem(list_item)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to read directory contents: {str(e)}")
+
 def load_config():
     config = configparser.ConfigParser()
     config.read('theme.ini')
